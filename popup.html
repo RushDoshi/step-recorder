@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Step Recorder</title>
+<style>
+  :root {
+    --paper: #EEF1F4;
+    --sheet: #FFFFFF;
+    --ink: #1D2733;
+    --muted: #5E6B78;
+    --rule: #CBD3DC;
+    --steel: #3C5A78;
+    --rec: #C8342B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; width: 400px;
+    font: 13px/1.45 "Ubuntu", "Cantarell", "Noto Sans", system-ui, sans-serif;
+    color: var(--ink); background: var(--paper);
+  }
+  header { padding: 14px 14px 10px; display: grid; gap: 8px; }
+  input[type=text] {
+    width: 100%; font: inherit; color: var(--ink);
+    padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px;
+    background: var(--sheet);
+  }
+  input[type=text]:focus-visible, button:focus-visible, p[contenteditable]:focus {
+    outline: 2px solid var(--steel); outline-offset: 1px;
+  }
+  button { font: inherit; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+
+  .row { display: flex; gap: 6px; }
+  #rec {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 10px; border-radius: 8px; border: 0;
+    background: var(--ink); color: #fff; font-size: 14px; font-weight: 500;
+  }
+  #rec .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--rec); }
+  #rec.on { background: var(--rec); }
+  #rec.on .dot { background: #fff; border-radius: 2px; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { #rec.on .dot { animation: none; } }
+  #verifyPage {
+    padding: 0 12px; border-radius: 8px; border: 1px solid var(--steel);
+    background: var(--sheet); color: var(--steel); font-weight: 500;
+  }
+
+  .sheet { background: var(--sheet); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .count { padding: 7px 14px; color: var(--muted); border-bottom: 1px solid var(--rule); font-size: 12px; }
+
+  #steps { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; }
+  #steps > li {
+    display: grid; grid-template-columns: 26px 1fr auto; align-items: start;
+    padding: 6px 8px 6px 10px; border-bottom: 1px solid #E6EAEE;
+  }
+  #steps > li.section {
+    grid-template-columns: 1fr auto; padding-top: 12px;
+    background: #F6F8FA; border-bottom-color: var(--rule);
+  }
+  #steps > li.section p { font-weight: 700; color: var(--steel); }
+  .num { color: var(--steel); font-weight: 500; font-variant-numeric: tabular-nums; }
+  p[contenteditable] { margin: 0; word-break: break-word; border-radius: 3px; }
+  p[contenteditable]:hover { background: #EEF2F6; }
+  p b { font-weight: 700; }
+
+  .subs { margin: 3px 0 0; padding-left: 20px; color: var(--ink); }
+  .subs li { display: grid; grid-template-columns: 1fr 20px; font-size: 12.5px; }
+
+  .actions { display: flex; gap: 2px; }
+  .icon {
+    border: 0; background: none; color: var(--muted); font-size: 15px; line-height: 1;
+    padding: 1px 3px; visibility: hidden; border-radius: 3px;
+  }
+  li:hover > .actions .icon, li:hover > .icon, .icon:focus-visible { visibility: visible; }
+  .icon:hover { color: var(--steel); background: #EEF2F6; }
+  .icon.del:hover { color: var(--rec); }
+
+  .empty { padding: 20px 16px; color: var(--muted); text-align: center; }
+
+  .add { padding: 10px 14px 4px; display: grid; gap: 6px; }
+  .add .row button {
+    padding: 6px 10px; border: 1px solid var(--rule); border-radius: 6px;
+    background: var(--sheet); color: var(--ink);
+  }
+  .add .row button:hover { border-color: var(--steel); }
+  .hint { color: var(--muted); font-size: 11.5px; padding: 2px 14px 8px; }
+  kbd {
+    font: 11px/1 inherit; padding: 1px 4px; border: 1px solid var(--rule);
+    border-bottom-width: 2px; border-radius: 3px; background: var(--sheet);
+  }
+
+
+  details.rules { margin: 0 14px 8px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; }
+  details.rules summary { padding: 7px 10px; cursor: pointer; color: var(--steel); font-weight: 500; }
+  details.rules .rbody { padding: 0 10px 10px; display: grid; gap: 6px; }
+  .rule { display: grid; grid-template-columns: 1fr 20px; gap: 4px; padding: 6px 0; border-top: 1px solid #E6EAEE; font-size: 12.5px; }
+  .rule .when { color: var(--muted); }
+  .rule .icon { visibility: visible; }
+  .rules .note { color: var(--muted); font-size: 11.5px; }
+  .rules .radd { display: grid; gap: 5px; }
+  .rules .radd button { justify-self: start; padding: 5px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
+  footer { display: flex; gap: 6px; padding: 4px 14px 12px; align-items: center; }
+  footer .save {
+    padding: 7px 10px; border-radius: 6px; border: 1px solid var(--steel);
+    background: var(--steel); color: #fff;
+  }
+  footer .save.alt { background: var(--sheet); color: var(--steel); }
+  footer #clear { margin-left: auto; border: 0; background: none; color: var(--muted); text-decoration: underline; }
+  footer #clear:hover { color: var(--rec); }
+  .toast { padding: 0 14px 10px; color: var(--steel); font-size: 12px; min-height: 18px; }
+</style>
+</head>
+<body>
+  <header>
+    <input type="text" id="title" placeholder="Scenario name, e.g. File Status scenarios" aria-label="Scenario name">
+    <div class="row">
+      <button id="rec"><span class="dot"></span><span id="recLabel">Start recording</span></button>
+      <button id="verifyPage" title="Click something on the page to add a Verify step">✓ Verify on page</button>
+    </div>
+  </header>
+
+  <div class="sheet">
+    <div class="count" id="count">No steps yet</div>
+    <ol id="steps"></ol>
+    <div class="empty" id="empty">Press Start recording, then use your web app. Each action appears here as a step.</div>
+  </div>
+
+  <div class="add">
+    <input type="text" id="noteText" placeholder="Type a step or a section name" aria-label="Step or section text">
+    <div class="row">
+      <button id="addStep">Add step</button>
+      <button id="addSection">Add section</button>
+      <button id="verifyText" title="Start the text with Verify">Verify…</button>
+    </div>
+  </div>
+  <div class="hint">While recording: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> new section · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> verify on page</div>
+
+  <details class="rules" id="rulesBox">
+    <summary>Auto-verify after buttons (<span id="ruleCount">0</span>)</summary>
+    <div class="rbody">
+      <div class="note">After you click one of these buttons, the verify step is added automatically, but only if the button's window closes or the page changes within 5 seconds.</div>
+      <div id="ruleList"></div>
+      <div class="radd">
+        <input type="text" id="ruleButton" placeholder="Button name, exactly as on screen (e.g. Change Status)" aria-label="Button name">
+        <input type="text" id="ruleVerify" placeholder="Verify step (e.g. Verify the Status change should be created successfully)" aria-label="Verify step">
+        <button id="ruleAdd">Add rule</button>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    <button class="save" id="copy" title="Copy the steps for Jira (keeps bold)">Copy steps</button>
+    <button class="save alt" id="saveDoc">Save Word</button>
+    <button class="save alt" id="saveTxt">Save .txt</button>
+    <button id="clear">Clear</button>
+  </footer>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
